@@ -1,0 +1,22 @@
+[
+  {
+    "rotulo": "Boa",
+    "arquivo": "/exemplos/boa.jpg"
+  },
+  {
+    "rotulo": "Tremida",
+    "arquivo": "/exemplos/tremida.jpg"
+  },
+  {
+    "rotulo": "Escura",
+    "arquivo": "/exemplos/escura.jpg"
+  },
+  {
+    "rotulo": "Estourada",
+    "arquivo": "/exemplos/estourada.jpg"
+  },
+  {
+    "rotulo": "Lavada",
+    "arquivo": "/exemplos/lavada.jpg"
+  }
+]

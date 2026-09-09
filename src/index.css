@@ -1,0 +1,60 @@
+/* Paleta e tipografia são PROVISÓRIAS, neutras de propósito, à espera da
+   definição visual do projeto. Nada aqui foi herdado de outro projeto. */
+
+:root {
+  --fundo: #faf9f7;
+  --superficie: #ffffff;
+  --borda: #e6e2dc;
+  --texto: #1c1a17;
+  --texto-fraco: #6b655c;
+
+  --bom: #2f7d4f;
+  --atencao: #b4791a;
+  --ruim: #c0392b;
+
+  --bom-fraco: #e8f3ec;
+  --atencao-fraco: #fbf1de;
+  --ruim-fraco: #fbeae8;
+
+  --raio: 10px;
+  --sombra: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.04);
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #161513;
+    --superficie: #201e1b;
+    --borda: #35322d;
+    --texto: #f2efe9;
+    --texto-fraco: #a09992;
+
+    --bom: #6cc48c;
+    --atencao: #e0ac52;
+    --ruim: #e8796b;
+
+    --bom-fraco: #1e2f24;
+    --atencao-fraco: #322813;
+    --ruim-fraco: #331e1b;
+
+    --sombra: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 12px rgb(0 0 0 / 0.25);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; }
+img { max-width: 100%; display: block; }
