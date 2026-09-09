@@ -1,5 +1,4 @@
 import { rgbToLab, labChroma } from '../colorSpace.js';
-import { percentile } from '../image.js';
 
 // Contraste, saturação e dominante de cor, tudo medido em LAB.
 //
@@ -27,6 +26,27 @@ const FRACAO_NEUTRA = 0.25; // quartil de menor croma
 const L_MIN = 15;
 const L_MAX = 95;
 
+// Percentis por histograma, e não por ordenação.
+//
+// Ordenar as centenas de milhares de amostras de luminância e de croma respondia
+// por quase toda a duração da medição de cor. A resolução de um histograma de
+// mil posições é folgada para o uso que se faz aqui, que é achar um limiar de
+// corte e a amplitude tonal.
+const BINS = 1024;
+
+function percentilDeHistograma(hist, total, p, escala) {
+  const alvo = total * p;
+  let acc = 0;
+  for (let i = 0; i < hist.length; i++) {
+    acc += hist[i];
+    if (acc >= alvo) return (i / (hist.length - 1)) * escala;
+  }
+  return escala;
+}
+
+const L_ESCALA = 100;
+const CROMA_ESCALA = 150; // croma em LAB raramente passa disso em imagem sRGB
+
 export function measureColor(imageData) {
   const { data } = imageData;
   const total = data.length / 4;
@@ -36,7 +56,11 @@ export function measureColor(imageData) {
   const canalA = new Float32Array(total);
   const canalB = new Float32Array(total);
 
+  const histL = new Uint32Array(BINS);
+  const histCroma = new Uint32Array(BINS);
+
   let sumChroma = 0;
+  let candidatos = 0;
 
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     const lab = rgbToLab(data[i], data[i + 1], data[i + 2]);
@@ -46,29 +70,26 @@ export function measureColor(imageData) {
     canalA[p] = lab.a;
     canalB[p] = lab.b;
     sumChroma += c;
-  }
 
-  const lOrdenado = Array.from(lightness).sort((a, b) => a - b);
+    const binL = Math.max(0, Math.min(BINS - 1, Math.round((lab.L / L_ESCALA) * (BINS - 1))));
+    histL[binL]++;
 
-  // Candidatos a neutro: nem escuros demais, nem estourados.
-  const candidatos = [];
-  for (let p = 0; p < total; p++) {
-    if (lightness[p] >= L_MIN && lightness[p] <= L_MAX) candidatos.push(cromas[p]);
+    // Candidatos a neutro: nem escuros demais, nem estourados.
+    if (lab.L >= L_MIN && lab.L <= L_MAX) {
+      const binC = Math.max(0, Math.min(BINS - 1, Math.round((c / CROMA_ESCALA) * (BINS - 1))));
+      histCroma[binC]++;
+      candidatos++;
+    }
   }
-  candidatos.sort((a, b) => a - b);
 
   let castA = 0;
   let castB = 0;
   let usados = 0;
 
-  if (candidatos.length > 0) {
-    const limite = percentile(candidatos, FRACAO_NEUTRA);
+  if (candidatos > 0) {
+    const limite = percentilDeHistograma(histCroma, candidatos, FRACAO_NEUTRA, CROMA_ESCALA);
     for (let p = 0; p < total; p++) {
-      if (
-        lightness[p] >= L_MIN &&
-        lightness[p] <= L_MAX &&
-        cromas[p] <= limite
-      ) {
+      if (lightness[p] >= L_MIN && lightness[p] <= L_MAX && cromas[p] <= limite) {
         castA += canalA[p];
         castB += canalB[p];
         usados++;
@@ -80,8 +101,11 @@ export function measureColor(imageData) {
     }
   }
 
+  const p95 = percentilDeHistograma(histL, total, 0.95, L_ESCALA);
+  const p05 = percentilDeHistograma(histL, total, 0.05, L_ESCALA);
+
   return {
-    contrast: percentile(lOrdenado, 0.95) - percentile(lOrdenado, 0.05), // 0..100
+    contrast: p95 - p05, // 0..100
     saturation: sumChroma / total,
     cast: {
       a: castA,

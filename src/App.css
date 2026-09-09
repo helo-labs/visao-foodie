@@ -177,3 +177,137 @@
   color: var(--ruim);
   font-size: 14px;
 }
+
+/* --- Seções da Fase 2 e 3 --- */
+
+.secao { margin-top: 20px; padding: 16px 18px; }
+.secao h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+
+.linha-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.botao-texto {
+  background: none;
+  border: 0;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: 14px;
+}
+
+.tela-enquadramento {
+  width: 100%;
+  border-radius: 6px;
+  display: block;
+}
+
+.observacoes { margin: 12px 0 0; padding-left: 18px; }
+.observacoes li { margin-bottom: 4px; }
+
+.ressalva {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--texto-fraco);
+  line-height: 1.55;
+}
+.ressalva.destaque {
+  background: var(--atencao-fraco);
+  color: var(--texto);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.antes-depois {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.antes-depois figure { margin: 0; }
+.antes-depois canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+}
+.antes-depois figcaption {
+  font-size: 13px;
+  color: var(--texto-fraco);
+  margin-top: 6px;
+}
+
+.sinais { display: grid; gap: 14px; }
+.sinal {
+  border: 1px solid var(--borda);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.sinal h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.sinal p { margin: 0; font-size: 14px; line-height: 1.55; }
+.sinal.normal { border-left-color: var(--bom); }
+.sinal.alerta { border-left-color: var(--atencao); background: var(--atencao-fraco); }
+.sinal.neutro { border-left-color: var(--borda); }
+
+.sinal.com-espectro {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: 'titulo espectro' 'texto espectro';
+  column-gap: 14px;
+  align-items: start;
+}
+.sinal.com-espectro h4 { grid-area: titulo; }
+.sinal.com-espectro p { grid-area: texto; }
+.tela-espectro {
+  grid-area: espectro;
+  width: 170px;
+  height: 170px;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  background: #000;
+}
+@media (max-width: 560px) {
+  .sinal.com-espectro {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas: 'titulo' 'espectro' 'texto';
+    row-gap: 10px;
+  }
+  .tela-espectro { width: 150px; height: 150px; }
+  .antes-depois { grid-template-columns: 1fr; }
+}
+
+.webcam-area { position: relative; }
+.webcam-area video {
+  width: 100%;
+  border-radius: 6px;
+  display: block;
+  background: #000;
+}
+.selo {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.selo strong { font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
+.selo span { font-size: 13px; opacity: 0.85; }
+.selo.bom strong { color: #6cc48c; }
+.selo.atencao strong { color: #e0ac52; }
+.selo.ruim strong { color: #e8796b; }
+
+.exemplos button.camera { margin-left: auto; }

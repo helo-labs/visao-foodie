@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { analisar } from './lib/analyze.js';
 import CartaoMetrica from './components/CartaoMetrica.jsx';
 import Histograma from './components/Histograma.jsx';
+import Enquadramento from './components/Enquadramento.jsx';
+import Correcao from './components/Correcao.jsx';
+import PainelSinais from './components/PainelSinais.jsx';
+import Webcam from './components/Webcam.jsx';
 import exemplos from './exemplos.json';
 import './App.css';
 
@@ -18,10 +22,10 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
   const [arrastando, setArrastando] = useState(false);
+  const [camera, setCamera] = useState(false);
   const inputRef = useRef(null);
   const previaRef = useRef(null);
 
-  // Object URLs precisam ser revogados na troca, senão o blob fica retido.
   useEffect(() => () => {
     if (previaRef.current) URL.revokeObjectURL(previaRef.current);
   }, []);
@@ -92,53 +96,66 @@ export default function App() {
         />
       </div>
 
-      {exemplos.length > 0 && (
-        <div className="exemplos">
-          <span>Ou teste com</span>
-          {exemplos.map((ex) => (
-            <button key={ex.arquivo} onClick={() => processar(ex.arquivo, ex.arquivo)}>
-              {ex.rotulo}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="exemplos">
+        {exemplos.length > 0 && (
+          <>
+            <span>Ou teste com</span>
+            {exemplos.map((ex) => (
+              <button key={ex.arquivo} onClick={() => processar(ex.arquivo, ex.arquivo)}>
+                {ex.rotulo}
+              </button>
+            ))}
+          </>
+        )}
+        <button className="camera" onClick={() => setCamera((v) => !v)}>
+          {camera ? 'Fechar câmera' : 'Usar a câmera'}
+        </button>
+      </div>
 
       {erro && <div className="erro">{erro}</div>}
 
+      {camera && <Webcam aoFechar={() => setCamera(false)} />}
+
       {analise && (
-        <div className="resultado">
-          <div className="painel previa">
-            <img src={previa} alt="Foto analisada" />
-            <div className="meta">
-              <span>
-                {analise.dimensoes.largura} × {analise.dimensoes.altura}
-              </span>
-              <span>
-                medido em {analise.analisadoEm.largura} × {analise.analisadoEm.altura}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <div className="painel">
-              <div className={`nota-geral ${analise.resultado.nivel}`}>
-                <div className="valor">{analise.resultado.total.toFixed(0)}</div>
-                <div className="rotulo">
-                  de 100
-                  <br />
-                  qualidade técnica da foto
-                </div>
+        <>
+          <div className="resultado">
+            <div className="painel previa">
+              <img src={previa} alt="Foto analisada" />
+              <div className="meta">
+                <span>
+                  {analise.dimensoes.largura} × {analise.dimensoes.altura}
+                </span>
+                <span>
+                  medido em {analise.analisadoEm.largura} × {analise.analisadoEm.altura}
+                </span>
               </div>
-              {analise.resultado.itens.map((item) => (
-                <CartaoMetrica key={item.id} item={item} />
-              ))}
             </div>
 
-            <div className="painel" style={{ marginTop: 16 }}>
-              <Histograma histogram={analise.exposure.histogram} />
+            <div>
+              <div className="painel">
+                <div className={`nota-geral ${analise.resultado.nivel}`}>
+                  <div className="valor">{analise.resultado.total.toFixed(0)}</div>
+                  <div className="rotulo">
+                    de 100
+                    <br />
+                    qualidade técnica da foto
+                  </div>
+                </div>
+                {analise.resultado.itens.map((item) => (
+                  <CartaoMetrica key={item.id} item={item} />
+                ))}
+              </div>
+
+              <div className="painel" style={{ marginTop: 16 }}>
+                <Histograma histogram={analise.exposure.histogram} />
+              </div>
             </div>
           </div>
-        </div>
+
+          <Enquadramento src={previa} framing={analise.framing} />
+          <Correcao original={analise.imageData} correcao={analise.correcao} />
+          <PainelSinais sinais={analise.sinais} />
+        </>
       )}
 
       <p className="aviso">

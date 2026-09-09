@@ -8,9 +8,19 @@
 const D65 = { x: 95.047, y: 100.0, z: 108.883 };
 
 // sRGB vem com correção gama embutida; desfaz antes de qualquer conta linear.
-export function srgbToLinear(c) {
+//
+// Tabela de 256 entradas em vez de Math.pow por canal. A entrada é um byte, então
+// só existem 256 resultados possíveis, e a conversão é chamada três vezes por
+// pixel: numa imagem de 1024x768 são mais de dois milhões de exponenciações por
+// análise, que era o gargalo da medição de cor.
+const TABELA_LINEAR = new Float32Array(256);
+for (let c = 0; c < 256; c++) {
   const v = c / 255;
-  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  TABELA_LINEAR[c] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+export function srgbToLinear(c) {
+  return TABELA_LINEAR[c];
 }
 
 export function rgbToXyz(r, g, b) {
@@ -63,4 +73,32 @@ export function rgbToHsv(r, g, b) {
 // Luminância Rec. 709, o peso por canal que corresponde à sensibilidade do olho.
 export function luma(r, g, b) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// Volta de LAB para sRGB. Necessário para as correções, que ajustam a imagem no
+// espaço perceptual e precisam devolver pixels exibíveis.
+const despivot = (t) => {
+  const t3 = t * t * t;
+  return t3 > 0.008856 ? t3 : (t - 16 / 116) / 7.787;
+};
+
+export function linearToSrgb(v) {
+  const c = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(255, Math.round(c * 255)));
+}
+
+export function labToRgb(L, a, b) {
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - b / 200;
+
+  const x = (despivot(fx) * D65.x) / 100;
+  const y = (despivot(fy) * D65.y) / 100;
+  const z = (despivot(fz) * D65.z) / 100;
+
+  return {
+    r: linearToSrgb(x * 3.2406 + y * -1.5372 + z * -0.4986),
+    g: linearToSrgb(x * -0.9689 + y * 1.8758 + z * 0.0415),
+    b: linearToSrgb(x * 0.0557 + y * -0.204 + z * 1.057),
+  };
 }

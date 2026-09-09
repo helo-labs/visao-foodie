@@ -96,7 +96,10 @@ const DEGRADACOES = [
   { nome: 'estourada', aplicar: (img) => img.linear(1.75, 12) },
   { nome: 'lavada', aplicar: (img) => img.linear(0.42, 78) },
   { nome: 'dessaturada', aplicar: (img) => img.modulate({ saturation: 0.3 }) },
-  { nome: 'amarelada', aplicar: (img) => img.tint({ r: 255, g: 214, b: 150 }) },
+  // Multiplicador por canal, e não tint(). O tint do sharp converte para cinza
+  // antes de tingir, o que apaga a cor original da foto e produz uma degradação
+  // que nenhuma correção de balanço de branco consegue desfazer.
+  { nome: 'amarelada', aplicar: (img) => img.linear([1.28, 1.0, 0.58], [0, 0, 0]) },
 ];
 
 async function main() {

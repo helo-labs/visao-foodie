@@ -100,16 +100,124 @@ Separação obtida com os limiares atuais.
 | tremida (forte) | 40,0 |
 | muito escura | 27,4 |
 
+## Enquadramento
+
+O prato é localizado por transformada de Hough para círculos, em dois estágios,
+que é a abordagem do `HOUGH_GRADIENT` do OpenCV. Cada pixel de borda vota ao
+longo da própria normal do gradiente, num acumulador bidimensional de centros, e
+o raio sai depois do histograma de distâncias ao centro escolhido. Descartado o
+acumulador em três dimensões, que a 320x240 com 40 raios passaria de dois
+milhões de posições.
+
+O passo que decidiu o resultado foi borrar antes do Sobel. Sem isso os gradientes
+mais fortes da foto são a textura da comida, que é de alta frequência, e não a
+borda do prato, que é uma curva longa e lisa. Os votos se concentravam em
+qualquer relevo e a taxa de acerto ficava perto de 5 em 12. Com a gaussiana de
+sigma 2,4 subiu para cerca de 8 em 12.
+
+**Esta leitura não entra na nota.** Dois terços de acerto não bastam para julgar o
+enquadramento de ninguém, e o valor de confiança calculado mede o quanto o
+contorno fecha, não se o círculo caiu no prato certo, então não serve de filtro.
+A saída foi desenhar o círculo sobre a foto e deixar a conclusão com quem olha.
+
+## Correção automática
+
+Duas correções, ambas com intensidade decidida pelo que foi medido.
+
+**Equalização adaptativa de contraste (CLAHE)** no canal L do LAB, com blocos de
+8 por 8, corte de histograma e interpolação bilinear entre blocos. Descartada a
+equalização global, que aplica uma curva só à imagem inteira e estoura o fundo
+claro para levantar a comida na sombra. O corte do histograma é o que evita que
+um bloco de tom quase uniforme receba uma curva íngreme e vire ruído amplificado,
+e a interpolação é o que evita emenda visível entre blocos.
+
+**Balanço de branco** subtraindo a dominante medida nos pixels neutros.
+Descartado o white patch, que assume que o pixel mais claro é branco. Num prato
+com reflexo especular esse pixel é o brilho da luz, e a correção iria para o lado
+errado.
+
+A subtração é parcial, no máximo 80%. Zerar a dominante deixa a comida cinzenta,
+porque a luz quente faz parte da aparência que se espera de um prato.
+
+Foto que já está boa passa intocada, e isso é intencional. Aplicar as duas
+correções sempre no máximo devolve uma imagem crocante demais, com a textura da
+comida exagerada, e correção automática que piora foto boa não serve.
+
+## Sinais de imagem gerada
+
+Três medidas baratas, apresentadas como sinais com explicação, sem veredito.
+Detecção confiável de imagem gerada é problema em aberto, e chamar isto de
+detector seria mentira.
+
+**Metadados.** O sinal mais barato e o mais informativo. A evidência é
+assimétrica e a interface diz isso. Metadado de câmera presente é boa evidência
+de foto real. Metadado ausente não é evidência de quase nada, porque qualquer
+reenvio por rede social remove tudo.
+
+**Espectro de frequência.** FFT bidimensional radix-2 sobre um recorte central de
+256 por 256, com janela de Hann nas duas direções. A janela não é detalhe: sem
+ela a descontinuidade entre as bordas do recorte vira uma cruz brilhante no
+espectro, que é artefato do corte e seria confundida com assinatura de
+reamostragem. Os picos são procurados contra a mediana do próprio anel de
+frequência, e não contra a média global, porque o espectro de imagem natural
+decai com a distância do centro.
+
+**Resíduo de ruído.** A imagem menos a versão borrada dela, medido nas regiões
+lisas, onde o ruído de sensor aparece e o detalhe da comida não atrapalha.
+
+### O que foi verificado e o que não foi
+
+A FFT foi verificada contra padrões sintéticos de resposta conhecida. Ruído
+aleatório dá zero picos, grade periódica e senoide disparam, gradiente liso se
+comporta como esperado. Nas 24 fotos reais de referência, 23 dão zero picos e a
+razão máxima fica entre 3,8 e 5,0, abaixo do limiar de 6. **Uma das 24 dispara um
+falso positivo**, com 226 picos e razão 12.
+
+O resíduo de ruído responde na direção certa a um controle, já que um filtro de
+mediana derruba o valor medido. Mas o espalhamento entre fotos reais é grande,
+de 0,50 a 5,85, e **nenhum limiar foi calibrado para ele**. A interface mostra o
+número e diz isso.
+
+**Nada disto foi validado contra imagens realmente geradas**, porque não montei um
+conjunto delas. O que existe é a verificação de que as medidas computam o que
+deveriam e de como se comportam em foto real. Poder discriminativo é outra
+afirmação, e essa eu não posso fazer.
+
+## Câmera ao vivo
+
+Nota em tempo real pela webcam, a cada 350 ms, rodando só as três métricas
+básicas. Enquadramento, espectro e correção ficam de fora porque somam algumas
+centenas de milissegundos e travariam o vídeo.
+
+## Desempenho
+
+A análise completa leva cerca de 250 ms numa imagem de 1024 por 768, contra 810
+ms na primeira versão. Duas mudanças responderam por quase toda a diferença.
+
+**Tabela de 256 entradas para a conversão de gama.** A entrada é um byte, então só
+existem 256 resultados possíveis, e a conversão era chamada três vezes por pixel.
+Eram mais de dois milhões de `Math.pow` por análise.
+
+**Percentis lidos de histograma em vez de lista ordenada.** Ordenar as centenas de
+milhares de amostras de luminância e croma custava mais que todo o resto da
+medição somado, e um histograma de mil posições tem resolução folgada para achar
+um limiar de corte. A calibração não se move com a troca, ficando em 86,7 contra
+86,6 antes.
+
 ## Limitações conhecidas
 
+- **A detecção do prato acerta cerca de dois terços das fotos**, e por isso o
+  enquadramento é informativo e não entra na nota.
 - **Estouro de altas luzes é a métrica mais fraca das cinco.** O recorte central
   ajuda, mas fundo branco liso ainda influencia. A separação correta exige
-  localizar o prato.
+  localizar o prato de forma confiável.
 - **O gabarito das degradações não é perfeito.** "Estourada" multiplica o brilho
   por 2,6, e aplicado a uma foto originalmente subexposta o resultado pode ficar
   melhor que o original. Parte desse grupo provavelmente não é foto ruim.
 - **O conjunto de referência é pequeno**, com 24 fotos, e vem de um catálogo, não
   de fotos de celular de restaurante, que é o caso de uso real.
+- **Os sinais de imagem gerada não foram validados contra imagens geradas**, e o
+  resíduo de ruído não tem limiar calibrado.
 - **A ferramenta não sabe que comida está na foto** e não avalia composição,
   apetite ou estilo, só qualidade técnica de captura.
 
@@ -129,16 +237,6 @@ node scripts/calibrar.mjs ordenar
 ```
 
 `fotos-calibracao/` fica fora do controle de versão e é recriável pelo script.
-
-## Próximos passos
-
-**Fase 2.** Localizar o prato com Hough Circles para avaliar enquadramento,
-correção automática com CLAHE e balanço de branco mostrando antes e depois, e
-webcam com nota em tempo real. É onde o `opencv.js` entra. A Fase 1 não precisa
-dele, e por isso a página carrega instantânea.
-
-**Fase 3.** Painel de suspeita de imagem gerada por IA, com metadados EXIF,
-espectro de frequência e resíduo de ruído. Sinais com explicação, sem veredito.
 
 ## Imagens
 
