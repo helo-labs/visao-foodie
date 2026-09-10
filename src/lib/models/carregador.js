@@ -29,6 +29,17 @@ async function lib() {
       m.env.allowLocalModels = false;
       m.env.backends.onnx.wasm.wasmPaths =
         `https://cdn.jsdelivr.net/npm/onnxruntime-web@${VERSAO_ONNX}/dist/`;
+
+      // Thread única, de propósito.
+      //
+      // O runtime ONNX em várias threads depende de SharedArrayBuffer, que o
+      // navegador só entrega em página com isolamento de origem, ou seja com os
+      // cabeçalhos COOP e COEP. Uma página estática no Pages não tem como mandar
+      // esses cabeçalhos, e sem eles a criação da sessão fica esperando workers
+      // que nunca sobem: o download termina, nenhuma requisição falha, e a
+      // promessa simplesmente nunca resolve.
+      m.env.backends.onnx.wasm.numThreads = 1;
+
       return m;
     });
   }
@@ -37,6 +48,30 @@ async function lib() {
 
 const cache = new Map();
 
+// Um download travado deixa a promessa pendente para sempre, e a interface fica
+// num "carregando" eterno que é indistinguível de uma tela quebrada. Falhar é
+// melhor que pendurar.
+const LIMITE_MS = 180000;
+
+function comLimite(promessa, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(
+      () => reject(new Error(`o modelo não carregou em ${Math.round(ms / 1000)}s`)),
+      ms,
+    );
+    promessa.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 // Uma promessa por modelo, guardada no cache. Chamadas simultâneas para o mesmo
 // modelo compartilham o mesmo download em vez de disparar vários.
 export function carregar(tarefa, modelo, opcoes = {}) {
@@ -44,8 +79,14 @@ export function carregar(tarefa, modelo, opcoes = {}) {
   if (!cache.has(chave)) {
     cache.set(
       chave,
-      lib()
-        .then((m) => m.pipeline(tarefa, modelo, { dtype: 'q8', ...opcoes }))
+      comLimite(
+        lib().then((m) =>
+          // device fixo em wasm. Deixando a escolha automática, o Chromium tenta
+          // WebGPU, anuncia suporte e trava na criação da sessão sem erro nenhum.
+          m.pipeline(tarefa, modelo, { device: 'wasm', dtype: 'q8', ...opcoes }),
+        ),
+        LIMITE_MS,
+      )
         .catch((e) => {
         // Sem isso um erro de rede deixaria a promessa falha presa no cache e
         // toda tentativa seguinte falharia sem nem tentar baixar de novo.

@@ -77,21 +77,36 @@ function TextoExif({ exif }) {
 
 export default function Slop({ fonte, sinais }) {
   const [estado, setEstado] = useState('carregando');
+  const [progresso, setProgresso] = useState(0);
+  const [erro, setErro] = useState(null);
   const [resultado, setResultado] = useState(null);
 
   useEffect(() => {
     if (!fonte) return;
     let vivo = true;
     setEstado('carregando');
+    setProgresso(0);
+    setErro(null);
     setResultado(null);
 
-    medirSlop(fonte)
+    medirSlop(fonte, {
+      aoProgredir: (p) => {
+        if (vivo && p.status === 'progress' && p.progress != null) {
+          setProgresso(Math.round(p.progress));
+        }
+      },
+    })
       .then((r) => {
         if (!vivo) return;
         setResultado(r);
+        setErro(r.erro ?? null);
         setEstado(r.disponivel ? 'pronto' : 'erro');
       })
-      .catch(() => vivo && setEstado('erro'));
+      .catch((e) => {
+        if (!vivo) return;
+        setErro(String(e?.message ?? e));
+        setEstado('erro');
+      });
 
     return () => {
       vivo = false;
@@ -105,8 +120,16 @@ export default function Slop({ fonte, sinais }) {
     <div className="painel secao">
       <h3>Cara de IA</h3>
 
-      {estado === 'carregando' && <p className="ressalva">Medindo…</p>}
-      {estado === 'erro' && <p className="ressalva">Não consegui medir.</p>}
+      {estado === 'carregando' && (
+        <p className="ressalva">
+          {progresso > 0
+            ? `Baixando o modelo (${progresso}%). Só na primeira vez, depois fica no cache do navegador.`
+            : 'Carregando o modelo. Só na primeira vez, depois fica no cache do navegador.'}
+        </p>
+      )}
+      {estado === 'erro' && (
+        <p className="ressalva">Não consegui medir{erro ? `: ${erro}` : '.'}</p>
+      )}
 
       {estado === 'pronto' && (
         <>

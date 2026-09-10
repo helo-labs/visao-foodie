@@ -7,6 +7,7 @@ import { reconhecerPrato } from '../lib/models/comida.js';
 export default function Prato({ fonte }) {
   const [estado, setEstado] = useState('carregando');
   const [progresso, setProgresso] = useState(0);
+  const [erro, setErro] = useState(null);
   const [resultado, setResultado] = useState(null);
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function Prato({ fonte }) {
     setEstado('carregando');
     setResultado(null);
     setProgresso(0);
+    setErro(null);
 
     reconhecerPrato(fonte, {
       aoProgredir: (p) => {
@@ -28,8 +30,10 @@ export default function Prato({ fonte }) {
         setResultado(r);
         setEstado('pronto');
       })
-      .catch(() => {
-        if (vivo) setEstado('erro');
+      .catch((e) => {
+        if (!vivo) return;
+        setErro(String(e?.message ?? e));
+        setEstado('erro');
       });
 
     return () => {
@@ -53,7 +57,9 @@ export default function Prato({ fonte }) {
     return (
       <div className="painel secao">
         <h3>Que prato é este</h3>
-        <p className="ressalva">Não consegui carregar o modelo de reconhecimento.</p>
+        <p className="ressalva">
+          Não consegui carregar o modelo de reconhecimento{erro ? `: ${erro}` : '.'}
+        </p>
       </div>
     );
   }
