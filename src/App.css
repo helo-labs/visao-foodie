@@ -178,7 +178,7 @@
   font-size: 14px;
 }
 
-/* --- Seções da Fase 2 e 3 --- */
+/* --- Seções adicionais --- */
 
 .secao { margin-top: 20px; padding: 16px 18px; }
 .secao h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
@@ -284,30 +284,94 @@
   .antes-depois { grid-template-columns: 1fr; }
 }
 
-.webcam-area { position: relative; }
-.webcam-area video {
-  width: 100%;
-  border-radius: 6px;
-  display: block;
-  background: #000;
-}
-.selo {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.72);
-  color: #fff;
-  backdrop-filter: blur(4px);
-}
-.selo strong { font-size: 26px; line-height: 1; font-variant-numeric: tabular-nums; }
-.selo span { font-size: 13px; opacity: 0.85; }
-.selo.bom strong { color: #6cc48c; }
-.selo.atencao strong { color: #e0ac52; }
-.selo.ruim strong { color: #e8796b; }
 
-.exemplos button.camera { margin-left: auto; }
+
+
+
+.palpite {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+.palpite strong { font-size: 22px; letter-spacing: -0.02em; }
+.palpite span { color: var(--texto-fraco); font-variant-numeric: tabular-nums; }
+
+.alternativas {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.alternativas li {
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  padding: 3px 11px;
+  font-size: 13px;
+  color: var(--texto-fraco);
+}
+.alternativas li span { opacity: 0.7; margin-left: 4px; }
+
+.veredito { margin-bottom: 14px; }
+.medidor {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--borda);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.medidor > i { display: block; height: 100%; border-radius: 4px; }
+.veredito.limpo .medidor > i { background: var(--bom); }
+.veredito.suspeita .medidor > i { background: var(--atencao); }
+.veredito p { margin: 0; font-size: 14px; }
+.veredito strong { display: block; font-size: 17px; margin-bottom: 2px; }
+.veredito.limpo strong { color: var(--bom); }
+.veredito.suspeita strong { color: var(--atencao); }
+
+.subsecao {
+  margin: 20px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-fraco);
+}
+
+code {
+  font-size: 0.92em;
+  background: var(--fundo);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.escala { margin-bottom: 14px; }
+.trilho {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--bom), var(--atencao) 60%, var(--ruim));
+  opacity: 0.85;
+}
+.trilho > i {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--texto);
+  box-shadow: 0 0 0 2px var(--superficie);
+}
+.faixas {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--texto-fraco);
+  gap: 6px;
+}
+.faixas span { flex: 1; text-align: center; }
+.faixas span:first-child { text-align: left; }
+.faixas span:last-child { text-align: right; }
+.faixas .atual { color: var(--texto); font-weight: 600; }

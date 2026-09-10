@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { analisar } from './lib/analyze.js';
 import CartaoMetrica from './components/CartaoMetrica.jsx';
 import Histograma from './components/Histograma.jsx';
-import Enquadramento from './components/Enquadramento.jsx';
-import Correcao from './components/Correcao.jsx';
-import PainelSinais from './components/PainelSinais.jsx';
-import Webcam from './components/Webcam.jsx';
+import Slop from './components/Slop.jsx';
+import Prato from './components/Prato.jsx';
 import exemplos from './exemplos.json';
 import './App.css';
 
@@ -22,7 +20,6 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
   const [arrastando, setArrastando] = useState(false);
-  const [camera, setCamera] = useState(false);
   const inputRef = useRef(null);
   const previaRef = useRef(null);
 
@@ -107,14 +104,9 @@ export default function App() {
             ))}
           </>
         )}
-        <button className="camera" onClick={() => setCamera((v) => !v)}>
-          {camera ? 'Fechar câmera' : 'Usar a câmera'}
-        </button>
       </div>
 
       {erro && <div className="erro">{erro}</div>}
-
-      {camera && <Webcam aoFechar={() => setCamera(false)} />}
 
       {analise && (
         <>
@@ -152,9 +144,8 @@ export default function App() {
             </div>
           </div>
 
-          <Enquadramento src={previa} framing={analise.framing} />
-          <Correcao original={analise.imageData} correcao={analise.correcao} />
-          <PainelSinais sinais={analise.sinais} />
+          <Prato fonte={previa} />
+          <Slop fonte={previa} sinais={analise.sinais} />
         </>
       )}
 

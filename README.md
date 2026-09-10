@@ -1,18 +1,24 @@
 # Visão Foodie
 
-Análise de qualidade técnica de foto de comida. Você escolhe uma foto e ela
-devolve uma nota de 0 a 100, o que está errado e o que fazer para melhorar.
+Você escolhe uma foto de comida e ela responde três coisas.
+
+1. **Que prato é este**, por reconhecimento sem treino
+2. **A foto está boa**, com nota de 0 a 100 e o que corrigir
+3. **Tem cara de IA**, como escala e não como veredito
 
 Roda inteiramente no navegador. Não existe servidor. A imagem é lida em um
-`<canvas>`, medida ali e descartada, e nenhum byte sai do dispositivo.
+`<canvas>`, medida ali e descartada, e nenhum byte sai do dispositivo. Os modelos
+vêm do CDN do Hugging Face, e o mesmo CLIP serve o reconhecimento do prato e o
+indicador de cara de IA, então o segundo sai de graça.
 
 > A apresentação do projeto, com descrição curta, posicionamento e texto da
 > página inicial, ainda não foi escrita. O que está aqui descreve só o
 > funcionamento.
 
-## O que é medido
+## Qualidade da foto
 
-Cinco métricas, todas de visão computacional clássica, sem modelo treinado.
+Cinco métricas, todas de visão computacional clássica em JS puro sobre
+`ImageData`, sem biblioteca de visão e sem modelo.
 
 | Métrica | Como é medida |
 |---|---|
@@ -100,143 +106,109 @@ Separação obtida com os limiares atuais.
 | tremida (forte) | 40,0 |
 | muito escura | 27,4 |
 
-## Enquadramento
+## Que prato é este
 
-O prato é localizado por transformada de Hough para círculos, em dois estágios,
-que é a abordagem do `HOUGH_GRADIENT` do OpenCV. Cada pixel de borda vota ao
-longo da própria normal do gradiente, num acumulador bidimensional de centros, e
-o raio sai depois do histograma de distâncias ao centro escolhido. Descartado o
-acumulador em três dimensões, que a 320x240 com 40 raios passaria de dois
-milhões de posições.
+Reconhecimento por CLIP, sem treino. A lista de pratos é passada como texto e o
+modelo pontua a foto contra cada um, então trocar a lista muda o que ele
+reconhece sem retreinar nada.
 
-O passo que decidiu o resultado foi borrar antes do Sobel. Sem isso os gradientes
-mais fortes da foto são a textura da comida, que é de alta frequência, e não a
-borda do prato, que é uma curva longa e lisa. Os votos se concentravam em
-qualquer relevo e a taxa de acerto ficava perto de 5 em 12. Com a gaussiana de
-sigma 2,4 subiu para cerca de 8 em 12.
+Cada prato tem nome em português, que aparece na tela, e uma descrição em inglês,
+que é o que vai para o modelo. O CLIP foi treinado majoritariamente em texto
+inglês, e nome próprio de prato brasileiro sozinho diz pouco a ele, então a
+descrição descreve o que se vê em vez de nomear.
 
-**Esta leitura não entra na nota.** Dois terços de acerto não bastam para julgar o
-enquadramento de ninguém, e o valor de confiança calculado mede o quanto o
-contorno fecha, não se o círculo caiu no prato certo, então não serve de filtro.
-A saída foi desenhar o círculo sobre a foto e deixar a conclusão com quem olha.
+Medido contra as 24 fotos de prato com nome conhecido do conjunto de referência,
+usando os próprios nomes como candidatos: **acerta 54% em primeiro lugar e 75%
+entre os três primeiros, contra 4% de acaso**. Os erros se concentram em prato de
+nome regional que o modelo não viu no treino.
 
-## Correção automática
+## Cara de IA
 
-Duas correções, ambas com intensidade decidida pelo que foi medido.
+Indicador contínuo do quanto a imagem parece boa demais para ser real. **Não diz
+se a imagem foi gerada**, e a diferença não é rodeio.
 
-**Equalização adaptativa de contraste (CLAHE)** no canal L do LAB, com blocos de
-8 por 8, corte de histograma e interpolação bilinear entre blocos. Descartada a
-equalização global, que aplica uma curva só à imagem inteira e estoura o fundo
-claro para levantar a comida na sombra. O corte do histograma é o que evita que
-um bloco de tom quase uniforme receba uma curva íngreme e vire ruído amplificado,
-e a interpolação é o que evita emenda visível entre blocos.
+O CLIP compara a foto com descrições de estilo, umas de foto de câmera e outras
+de imagem gerada e render, e o indicador é o peso que fica do lado sintético.
+Custa zero download extra, porque o CLIP já é carregado para reconhecer o prato.
 
-**Balanço de branco** subtraindo a dominante medida nos pixels neutros.
-Descartado o white patch, que assume que o pixel mais claro é branco. Num prato
-com reflexo especular esse pixel é o brilho da luz, e a correção iria para o lado
-errado.
+Medido em 74 fotos reais contra 93 imagens geradas, a mediana fica em 32 para
+foto de celular, 78 para foto de catálogo e 81 para imagem gerada.
 
-A subtração é parcial, no máximo 80%. Zerar a dominante deixa a comida cinzenta,
-porque a luz quente faz parte da aparência que se espera de um prato.
+Foto de catálogo pontuar junto com imagem gerada não é defeito da medida, é o que
+ela mede. As duas são brilhantes e perfeitas demais. Nenhuma formulação de texto
+testada separou as duas coisas: todo candidato que derrubava a foto de estúdio
+derrubava a imagem gerada junto, e a separação caía de 58 para 34 pontos.
 
-Foto que já está boa passa intocada, e isso é intencional. Aplicar as duas
-correções sempre no máximo devolve uma imagem crocante demais, com a textura da
-comida exagerada, e correção automática que piora foto boa não serve.
+Como evidência de apoio, ficam os metadados EXIF e o espectro de frequência.
 
-## Sinais de imagem gerada
+## Por que não um detector de verdade
 
-Três medidas baratas, apresentadas como sinais com explicação, sem veredito.
-Detecção confiável de imagem gerada é problema em aberto, e chamar isto de
-detector seria mentira.
+Esta parte é o resultado principal do projeto, e é um resultado negativo.
 
-**Metadados.** O sinal mais barato e o mais informativo. A evidência é
-assimétrica e a interface diz isso. Metadado de câmera presente é boa evidência
-de foto real. Metadado ausente não é evidência de quase nada, porque qualquer
-reenvio por rede social remove tudo.
+**Três detectores prontos, medidos no mesmo conjunto:**
 
-**Espectro de frequência.** FFT bidimensional radix-2 sobre um recorte central de
-256 por 256, com janela de Hann nas duas direções. A janela não é detalhe: sem
-ela a descontinuidade entre as bordas do recorte vira uma cruz brilhante no
-espectro, que é artefato do corte e seria confundida com assinatura de
-reamostragem. Os picos são procurados contra a mediana do próprio anel de
-frequência, e não contra a média global, porque o espectro de imagem natural
-decai com a distância do centro.
+| modelo | tamanho | acusa foto real | pega gerada |
+|---|---|---|---|
+| SMOGY-Ai-images-detector | 50MB | 67% | (inutilizável) |
+| ai-vs-human-SigLIP | 84MB | 0% | 23% |
+| Organika/sdxl-detector | 337MB | 8% | 53% |
 
-**Resíduo de ruído.** A imagem menos a versão borrada dela, medido nas regiões
-lisas, onde o ruído de sensor aparece e o detalhe da comida não atrapalha.
+O único que presta pesa 337MB, que ninguém espera baixar numa página. O mais
+óbvio da categoria acusa dois terços das fotos reais de serem geradas, e a
+suspeita é que foto de catálogo, lisa e bem iluminada, caia no que ele aprendeu
+como sintético.
 
-### O que foi verificado e o que não foi
+**Depois disso, treinei um classificador próprio** sobre os embeddings do CLIP, o
+que resolveria o tamanho de uma vez, já que uma regressão logística de 512 pesos
+ocupa poucos KB. Real vindo do Food-101, gerado vindo do DiffusionDB, classes
+equilibradas, regularização escolhida por validação.
 
-A FFT foi verificada contra padrões sintéticos de resposta conhecida. Ruído
-aleatório dá zero picos, grade periódica e senoide disparam, gradiente liso se
-comporta como esperado. Nas 24 fotos reais de referência, 23 dão zero picos e a
-razão máxima fica entre 3,8 e 5,0, abaixo do limiar de 6. **Uma das 24 dispara um
-falso positivo**, com 226 picos e razão 12.
+| | acusa foto real | pega gerada |
+|---|---|---|
+| validação, mesmas fontes | 0% | 96% |
+| teste com fontes de fora | **79%** | 95% |
 
-O resíduo de ruído responde na direção certa a um controle, já que um filtro de
-mediana derruba o valor medido. Mas o espalhamento entre fotos reais é grande,
-de 0,50 a 5,85, e **nenhum limiar foi calibrado para ele**. A interface mostra o
-número e diz isso.
+O modelo não aprendeu a distinguir IA de foto. Aprendeu a distinguir **Food-101
+de DiffusionDB**, ou seja, os datasets. Em imagem de fora ele acusa quatro em cada
+cinco fotos reais.
 
-**Nada disto foi validado contra imagens realmente geradas**, porque não montei um
-conjunto delas. O que existe é a verificação de que as medidas computam o que
-deveriam e de como se comportam em foto real. Poder discriminativo é outra
-afirmação, e essa eu não posso fazer.
+Sem o teste com fontes que o modelo nunca viu, esse classificador teria sido
+publicado com "96% de acurácia" no README.
 
-## Câmera ao vivo
+O que faltou não foi volume, foi **diversidade de fontes**. Um lado real vindo de
+uma origem só e um lado gerado vindo de outra dão ao classificador um atalho mais
+fácil que o problema de verdade. Corrigir isso exige real de várias origens e
+gerado de vários geradores, com pelo menos um gerador inteiro fora do treino, e
+imagem de comida gerada é escassa: nos datasets públicos que consegui varrer, ela
+é menos de 1% do conteúdo.
 
-Nota em tempo real pela webcam, a cada 350 ms, rodando só as três métricas
-básicas. Enquadramento, espectro e correção ficam de fora porque somam algumas
-centenas de milissegundos e travariam o vídeo.
+Daí a escolha final. Como a pergunta não precisava de veredito, medir estilo com
+o CLIP entrega um indicador honesto e de graça, em vez de um classificador que
+finge certeza.
 
-## Desempenho
+## Reprodutibilidade
 
-A análise completa leva cerca de 250 ms numa imagem de 1024 por 768, contra 810
-ms na primeira versão. Duas mudanças responderam por quase toda a diferença.
+```bash
+node scripts/baixar-fotos.mjs        # exemplos e conjunto de referência
+node scripts/calibrar.mjs            # métricas de qualidade
+node scripts/baixar-geradas.mjs 6000 # imagens geradas, filtradas por CLIP
+node scripts/baixar-treino.mjs 900   # conjunto de treino, exige token do HF
+node scripts/treinar-detector.mjs    # treina e mede o classificador descartado
+node scripts/avaliar-detector.mjs    # mede um detector pronto qualquer
+```
 
-**Tabela de 256 entradas para a conversão de gama.** A entrada é um byte, então só
-existem 256 resultados possíveis, e a conversão era chamada três vezes por pixel.
-Eram mais de dois milhões de `Math.pow` por análise.
-
-**Percentis lidos de histograma em vez de lista ordenada.** Ordenar as centenas de
-milhares de amostras de luminância e croma custava mais que todo o resto da
-medição somado, e um histograma de mil posições tem resolução folgada para achar
-um limiar de corte. A calibração não se move com a troca, ficando em 86,7 contra
-86,6 antes.
+`fotos-calibracao/` fica fora do controle de versão e é recriável pelos scripts.
 
 ## Limitações conhecidas
 
-- **A detecção do prato acerta cerca de dois terços das fotos**, e por isso o
-  enquadramento é informativo e não entra na nota.
-- **Estouro de altas luzes é a métrica mais fraca das cinco.** O recorte central
-  ajuda, mas fundo branco liso ainda influencia. A separação correta exige
-  localizar o prato de forma confiável.
-- **O gabarito das degradações não é perfeito.** "Estourada" multiplica o brilho
-  por 2,6, e aplicado a uma foto originalmente subexposta o resultado pode ficar
-  melhor que o original. Parte desse grupo provavelmente não é foto ruim.
-- **O conjunto de referência é pequeno**, com 24 fotos, e vem de um catálogo, não
-  de fotos de celular de restaurante, que é o caso de uso real.
-- **Os sinais de imagem gerada não foram validados contra imagens geradas**, e o
-  resíduo de ruído não tem limiar calibrado.
-- **A ferramenta não sabe que comida está na foto** e não avalia composição,
-  apetite ou estilo, só qualidade técnica de captura.
-
-## Rodando
-
-```bash
-npm install
-npm run dev
-```
-
-Para recriar o material fotográfico e recalibrar.
-
-```bash
-node scripts/baixar-fotos.mjs   # baixa exemplos e conjunto de referência
-node scripts/calibrar.mjs       # mede tudo e imprime a tabela
-node scripts/calibrar.mjs ordenar
-```
-
-`fotos-calibracao/` fica fora do controle de versão e é recriável pelo script.
+- **Cara de IA não separa foto de catálogo de imagem gerada**, e a interface diz
+  isso no lugar onde o número aparece.
+- **O reconhecimento erra prato de nome regional**, que o CLIP não viu no treino.
+  A lista de pratos é editável e define o que a ferramenta consegue reconhecer.
+- **Estouro de altas luzes é a métrica de qualidade mais fraca das cinco.** O
+  recorte central ajuda, mas fundo branco liso ainda influencia.
+- **O conjunto de referência é pequeno**, com 24 fotos de prato, e vem de um
+  catálogo, não de fotos de celular de restaurante.
 
 ## Imagens
 

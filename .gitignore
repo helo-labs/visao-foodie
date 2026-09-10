@@ -25,3 +25,6 @@ dist-ssr
 
 # Conjunto de calibracao: recriavel com scripts/baixar-fotos.mjs
 fotos-calibracao/
+
+# Imagens geradas para validacao do detector
+fotos-calibracao/geradas/
